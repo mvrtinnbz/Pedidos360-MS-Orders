@@ -1,0 +1,51 @@
+services:
+
+  mysql-orders:
+    image: mysql:8.0
+    container_name: mysql-orders
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: pedidos360_orders
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_orders_data:/var/lib/mysql
+
+  # RabbitMQ vive en esta EC2 y es el broker compartido de todo Pedidos360.
+  # 5672  = protocolo AMQP (lo usan los microservicios)
+  # 15672 = consola web de administracion (evidencia para el informe)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  ms-orders:
+    build: .
+    container_name: ms-orders
+    restart: always
+    depends_on:
+      - mysql-orders
+      - rabbitmq
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-orders:3306/pedidos360_orders
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+    ports:
+      - "8084:8084"
+
+volumes:
+  mysql_orders_data:
+  rabbitmq_data:
