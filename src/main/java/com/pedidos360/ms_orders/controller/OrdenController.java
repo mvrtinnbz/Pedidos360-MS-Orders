@@ -2,7 +2,9 @@ package com.pedidos360.ms_orders.controller;
 
 import com.pedidos360.ms_orders.dto.OrdenRequest;
 import com.pedidos360.ms_orders.entity.Orden;
+import com.pedidos360.ms_orders.security.UsuarioActual;
 import com.pedidos360.ms_orders.service.OrdenService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,13 +39,19 @@ public class OrdenController {
         return ResponseEntity.ok(orden);
     }
 
+    // Ordenes del usuario autenticado (segun su JWT).
+    @GetMapping("/mis-ordenes")
+    public List<Orden> getMisOrdenes() {
+        return service.findByUsuario(UsuarioActual.usuarioId());
+    }
+
     @GetMapping("/usuario/{usuarioId}")
     public List<Orden> getByUsuario(@PathVariable String usuarioId) {
         return service.findByUsuario(usuarioId);
     }
 
     @PostMapping
-    public ResponseEntity<Orden> crearOrden(@RequestBody OrdenRequest request) {
+    public ResponseEntity<Orden> crearOrden(@Valid @RequestBody OrdenRequest request) {
 
         Orden creada = service.crearOrden(request);
 

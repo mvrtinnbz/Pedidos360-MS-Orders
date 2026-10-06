@@ -43,6 +43,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: admin
       SPRING_RABBITMQ_PASSWORD: admin
+      PRODUCTOS_API_URL: http://98.94.223.45:8081
     ports:
       - "8084:8084"
 

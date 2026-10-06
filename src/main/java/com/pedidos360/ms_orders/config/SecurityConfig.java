@@ -16,7 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String ISSUER =
-            "https://login.microsoftonline.com/0844a9ad-f458-47d0-8036-0f2080309ddc/v2.0";
+            "https://sts.windows.net/0844a9ad-f458-47d0-8036-0f2080309ddc/";
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
