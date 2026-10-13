@@ -46,6 +46,16 @@ public final class UsuarioActual {
         return null;
     }
 
+    // Nombre completo del usuario (claim "name" del token de Azure).
+    public static String nombre() {
+        JwtAuthenticationToken auth = jwtAuth();
+        if (auth == null) {
+            return null;
+        }
+        String nombre = auth.getToken().getClaimAsString("name");
+        return (nombre != null && !nombre.isBlank()) ? nombre : null;
+    }
+
     // Token original, para reenviarlo al llamar a otros microservicios.
     public static String token() {
         JwtAuthenticationToken auth = jwtAuth();

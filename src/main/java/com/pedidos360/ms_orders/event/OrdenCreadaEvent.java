@@ -5,11 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 // Evento que viaja por RabbitMQ con routing key "orden.creada".
-// Lo consumen ms-productos (descuento de stock) y ms-notificaciones (correo).
+// Lo consumen ms-productos (stock), ms-notificaciones (correo) y ms-facturacion (factura).
 public class OrdenCreadaEvent {
 
     private Long ordenId;
     private String usuarioId;
+    private String nombreCliente;
     private String email;
     private BigDecimal total;
     private String fechaCreacion;
@@ -23,6 +24,9 @@ public class OrdenCreadaEvent {
 
     public String getUsuarioId() { return usuarioId; }
     public void setUsuarioId(String usuarioId) { this.usuarioId = usuarioId; }
+
+    public String getNombreCliente() { return nombreCliente; }
+    public void setNombreCliente(String nombreCliente) { this.nombreCliente = nombreCliente; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }

@@ -145,6 +145,7 @@ public class OrdenService {
 
         evento.setOrdenId(orden.getId());
         evento.setUsuarioId(orden.getUsuarioId());
+        evento.setNombreCliente(UsuarioActual.nombre());
         evento.setEmail(orden.getEmail());
         evento.setTotal(orden.getTotal());
         evento.setFechaCreacion(orden.getFechaCreacion().format(FORMATO_FECHA));
