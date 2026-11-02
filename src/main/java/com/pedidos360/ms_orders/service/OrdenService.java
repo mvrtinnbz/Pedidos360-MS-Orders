@@ -8,10 +8,13 @@ import com.pedidos360.ms_orders.entity.Orden;
 import com.pedidos360.ms_orders.entity.OrdenItem;
 import com.pedidos360.ms_orders.event.OrdenCreadaEvent;
 import com.pedidos360.ms_orders.event.OrdenItemEvent;
+import com.pedidos360.ms_orders.event.PagoResultadoEvent;
 import com.pedidos360.ms_orders.exception.OrdenException;
 import com.pedidos360.ms_orders.messaging.OrdenEventPublisher;
 import com.pedidos360.ms_orders.repository.OrdenRepository;
 import com.pedidos360.ms_orders.security.UsuarioActual;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,8 @@ import java.util.Map;
 
 @Service
 public class OrdenService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrdenService.class);
 
     private static final DateTimeFormatter FORMATO_FECHA =
             DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
@@ -56,8 +61,9 @@ public class OrdenService {
         return repository.findByUsuarioId(usuarioId);
     }
 
-    // Valida los productos, guarda la orden en MySQL y publica el evento en RabbitMQ.
-    // Si la publicacion falla, la transaccion hace rollback y la orden no queda registrada.
+    // Valida los productos y guarda la orden como PENDIENTE_PAGO.
+    // El evento "orden.creada" (stock, correo, boleta) se publica recien
+    // cuando ms-pago confirma el pago (ver procesarResultadoPago).
     @Transactional
     public Orden crearOrden(OrdenRequest request) {
 
@@ -75,17 +81,53 @@ public class OrdenService {
 
         Orden orden = new Orden(usuarioId, email);
 
+        // Se guarda el nombre ahora: cuando llegue el pago (por RabbitMQ) no habra token
+        orden.setNombreCliente(UsuarioActual.nombre());
+
         for (OrdenItemRequest itemRequest : agruparPorProducto(request.getItems())) {
             orden.agregarItem(construirItem(itemRequest));
         }
 
         orden.recalcularTotal();
 
-        Orden guardada = repository.save(orden);
+        return repository.save(orden);
+    }
 
-        publisher.publicarOrdenCreada(construirEvento(guardada));
+    // Llamado por PagoResultadoListener cuando ms-pago publica el resultado.
+    // Si la publicacion de "orden.creada" falla, la transaccion hace rollback
+    // y la orden no queda marcada como PAGADA.
+    @Transactional
+    public void procesarResultadoPago(PagoResultadoEvent evento) {
 
-        return guardada;
+        Orden orden = repository.findById(evento.getOrdenId()).orElse(null);
+
+        if (orden == null) {
+            log.warn("Pago {} para una orden inexistente ({})", evento.getPagoId(), evento.getOrdenId());
+            return;
+        }
+
+        // Una orden pagada no cambia mas (evita procesar dos veces el mismo pago)
+        if (Orden.PAGADA.equals(orden.getEstado())) {
+            log.info("Orden {} ya estaba PAGADA, se ignora el evento del pago {}", orden.getId(), evento.getPagoId());
+            return;
+        }
+
+        if ("APROBADO".equals(evento.getEstado())) {
+
+            orden.setEstado(Orden.PAGADA);
+            repository.save(orden);
+            log.info("Orden {} -> PAGADA (pago {})", orden.getId(), evento.getPagoId());
+
+            // Ahora si: stock, correo y boleta
+            publisher.publicarOrdenCreada(construirEvento(orden));
+
+        } else {
+
+            orden.setEstado(Orden.PAGO_RECHAZADO);
+            repository.save(orden);
+            log.info("Orden {} -> PAGO_RECHAZADO (pago {}: {})",
+                    orden.getId(), evento.getPagoId(), evento.getDetalle());
+        }
     }
 
     // Si el mismo producto viene repetido, se suman las cantidades.
@@ -145,7 +187,7 @@ public class OrdenService {
 
         evento.setOrdenId(orden.getId());
         evento.setUsuarioId(orden.getUsuarioId());
-        evento.setNombreCliente(UsuarioActual.nombre());
+        evento.setNombreCliente(orden.getNombreCliente());
         evento.setEmail(orden.getEmail());
         evento.setTotal(orden.getTotal());
         evento.setFechaCreacion(orden.getFechaCreacion().format(FORMATO_FECHA));

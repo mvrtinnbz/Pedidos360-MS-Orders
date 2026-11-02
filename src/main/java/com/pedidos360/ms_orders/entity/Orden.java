@@ -10,11 +10,17 @@ import java.util.List;
 @Table(name = "ordenes")
 public class Orden {
 
+    // Estados de la orden
+    public static final String PENDIENTE_PAGO = "PENDIENTE_PAGO";
+    public static final String PAGADA = "PAGADA";
+    public static final String PAGO_RECHAZADO = "PAGO_RECHAZADO";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String usuarioId;
+    private String nombreCliente;
     private String email;
     private BigDecimal total;
     private String estado;
@@ -29,7 +35,7 @@ public class Orden {
     public Orden(String usuarioId, String email) {
         this.usuarioId = usuarioId;
         this.email = email;
-        this.estado = "CREADA";
+        this.estado = PENDIENTE_PAGO;
         this.fechaCreacion = LocalDateTime.now();
         this.total = BigDecimal.ZERO;
     }
@@ -50,6 +56,9 @@ public class Orden {
 
     public String getUsuarioId() { return usuarioId; }
     public void setUsuarioId(String usuarioId) { this.usuarioId = usuarioId; }
+
+    public String getNombreCliente() { return nombreCliente; }
+    public void setNombreCliente(String nombreCliente) { this.nombreCliente = nombreCliente; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }

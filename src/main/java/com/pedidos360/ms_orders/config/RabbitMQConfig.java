@@ -5,6 +5,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.support.converter.JacksonJavaTypeMapper;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +25,10 @@ public class RabbitMQConfig {
 
     public static final String QUEUE_FACTURACION =
             "facturacion.queue";
+
+    // Resultado de los pagos (publica ms-pago: pago.aprobado / pago.rechazado)
+    public static final String QUEUE_ORDENES_PAGOS =
+            "ordenes.pagos.queue";
 
     @Bean
     public TopicExchange pedidos360Exchange() {
@@ -52,6 +57,13 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue ordenesPagosQueue() {
+        return QueueBuilder
+                .durable(QUEUE_ORDENES_PAGOS)
+                .build();
+    }
+
+    @Bean
     public Binding bindingProductosStock() {
         return BindingBuilder
                 .bind(productosStockQueue())
@@ -75,8 +87,21 @@ public class RabbitMQConfig {
                 .with(ROUTING_KEY_ORDEN_CREADA);
     }
 
+    // "pago.*" -> recibe pago.aprobado y pago.rechazado
+    @Bean
+    public Binding bindingOrdenesPagos() {
+        return BindingBuilder
+                .bind(ordenesPagosQueue())
+                .to(pedidos360Exchange())
+                .with("pago.*");
+    }
+
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new JacksonJsonMessageConverter("com.pedidos360");
+        JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter("com.pedidos360");
+        // El evento viene de otro microservicio (otra clase Java):
+        // se convierte al tipo del parametro del @RabbitListener.
+        converter.setTypePrecedence(JacksonJavaTypeMapper.TypePrecedence.INFERRED);
+        return converter;
     }
 }
